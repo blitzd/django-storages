@@ -8,7 +8,9 @@ from django.utils import timezone
 from django.utils.deconstruct import deconstructible
 from django.utils.encoding import force_bytes, smart_str
 
-from storages.utils import check_location, clean_name, safe_join, setting
+from storages.utils import (
+    check_location, clean_name, safe_join, setting, truncate_name,
+)
 
 try:
     from google.cloud.storage.client import Client
@@ -257,5 +259,7 @@ class GoogleCloudStorage(Storage):
     def get_available_name(self, name, max_length=None):
         if self.file_overwrite:
             name = clean_name(name)
+            if max_length is not None:
+                name = truncate_name(name, max_length)
             return name
         return super(GoogleCloudStorage, self).get_available_name(name, max_length)
