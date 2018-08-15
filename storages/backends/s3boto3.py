@@ -334,7 +334,7 @@ class S3Boto3Storage(Storage):
 
         stale_factor = (self._entries_timestamp - datetime.now()).seconds if self._entries_timestamp else 0
 
-        if not self._entries or stale_factor > 30:
+        if not self._entries or stale_factor > 120:
             self._entries = {
                 self._decode_name(entry.key): entry
                 for entry in self.bucket.objects.filter(Prefix=self.location)
