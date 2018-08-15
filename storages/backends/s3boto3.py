@@ -5,6 +5,7 @@ import threading
 import warnings
 from gzip import GzipFile
 from tempfile import SpooledTemporaryFile
+from datetime import datetime
 
 from django.conf import settings as django_settings
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
@@ -261,6 +262,7 @@ class S3Boto3Storage(Storage):
             self.url_protocol = 'https:'
 
         self._entries = {}
+        self._entries_timestamp = None
         self._bucket = None
         self._connections = threading.local()
 
@@ -329,11 +331,15 @@ class S3Boto3Storage(Storage):
         """
         Get the locally cached files for the bucket.
         """
-        # Disabled caching
-        self._entries = {
-            self._decode_name(entry.key): entry
-            for entry in self.bucket.objects.filter(Prefix=self.location)
-        }
+
+        stale_factor = (self._entries_timestamp - datetime.now()).seconds if self._entries_timestamp else 0
+
+        if not self._entries or stale_factor > 30:
+            self._entries = {
+                self._decode_name(entry.key): entry
+                for entry in self.bucket.objects.filter(Prefix=self.location)
+            }
+            self._entries_timestamp = datetime.now()
         return self._entries
 
     def _get_access_keys(self):
@@ -480,8 +486,7 @@ class S3Boto3Storage(Storage):
 
         encoded_name = self._encode_name(name)
         obj = self.bucket.Object(encoded_name)
-        # if self.preload_metadata:
-        #     self._entries[encoded_name] = obj
+        self._entries[encoded_name] = obj
 
         # If both `name` and `content.name` are empty or None, your request
         # can be rejected with `XAmzContentSHA256Mismatch` error, because in
